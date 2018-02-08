@@ -6,6 +6,7 @@
 const int RHT03_DATA_PIN = 4; // RHT03 data pin
 
 float temp;
+float temparray[5];
 int tempPin = A2; // Temperature input pin
 int sampleTime = 1000; // 1 second dafault 
 
@@ -31,6 +32,25 @@ void loop() {
   float latestTempF;
 
 
+  StaticJsonBuffer<200> jsonBuffer;
+  char json[200] = "{}";
+  JsonObject& root = jsonBuffer.parseObject(json);
+  if (!root.success()) {
+    Serial.println("parseObject() failed");
+  }
+  for(int i=4; i>0; i--){
+    temparray[i] = temparray[i-1];
+  }
+  
+  temp = analogRead(A2);
+  temp = temp * 0.48828125;
+  temp = temp *9 / 5;
+  temp = temp + 32;
+  temparray[0] = temp;
+  temp = (temparray[0]*3+temparray[1]*4+temparray[2]*3+temparray[3]*2+temparray[4])/13;
+  temparray[0] = temp;
+  //root["TEMP"] = temp;
+  
   // If successful, the update() function will return 1.
   if (updateRet == 1)
   {
@@ -39,14 +59,14 @@ void loop() {
     // value 
     latestHumidity = rht.humidity();
     latestTempF = rht.tempF();
-    
+    //root["TEMP"] = latestTempF;
   }
   else
   {
     // If the update failed, try delaying for RHT_READ_INTERVAL_MS ms before
     // trying again.
     delay(1000);
-    return;
+    //return;
   }
 
   /*adxl.read();
@@ -67,29 +87,17 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
   }
 
-  temp = analogRead(A2);
-  temp = temp * 0.48828125;
-  temp = temp *9 / 5;
-  temp = temp + 32;
-
-  StaticJsonBuffer<200> jsonBuffer;
-  char json[200] = "{}";
-  JsonObject& root = jsonBuffer.parseObject(json);
-  if (!root.success()) {
-    Serial.println("parseObject() failed");
-  }
-  root["HUMIDITY"] = latestHumidity; 
   root["TEMP"] = latestTempF;
-  root["LM TEMP"] = temp;
+  root["HUMIDITY"] = latestHumidity; 
   //root["XAXIS"] = xAxis;
   //root["YAXIS"] = yAxis;
   //root["ZAXIS"] = zAxis;
   root["OCCUPIED"] = occupancy;
   
   Serial.println();
-  if(Serial.available()){
-    root["MSG"] = Serial.readString();
-  }
+//  if(Serial.available()){
+//    root["MSG"] = Serial.readString();
+//  }
   root.printTo(Serial); 
   delay(sampleTime);
 }
