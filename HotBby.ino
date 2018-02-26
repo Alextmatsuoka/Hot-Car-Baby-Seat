@@ -4,12 +4,15 @@
 #include "ArduinoJson.h"
 
 const int RHT03_DATA_PIN = 4; // RHT03 data pin
-
 float temp;
 float temparray[5];
 int tempPin = A2; // Temperature input pin
 int sampleTime = 1000; // 1 second dafault 
-
+float occupancy;
+float latestHumidity;
+float latestTempF;
+float severe;
+  
 RHT03 rht;
 ADXL345 adxl;
 
@@ -19,18 +22,12 @@ void setup() {
   Wire.begin();
   adxl.begin();
   rht.begin(RHT03_DATA_PIN);
-  while (!Serial) continue;
-  pinMode(LED_BUILTIN, OUTPUT);
   delay(1000);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   int updateRet = rht.update();
-  bool occupancy;
-  float latestHumidity;
-  float latestTempF;
-
 
   StaticJsonBuffer<200> jsonBuffer;
   char json[200] = "{}";
@@ -38,6 +35,7 @@ void loop() {
   if (!root.success()) {
     Serial.println("parseObject() failed");
   }
+  
   for(int i=4; i>0; i--){
     temparray[i] = temparray[i-1];
   }
@@ -49,7 +47,6 @@ void loop() {
   temparray[0] = temp;
   temp = (temparray[0]*3+temparray[1]*4+temparray[2]*3+temparray[3]*2+temparray[4])/13;
   temparray[0] = temp;
-  //root["TEMP"] = temp;
   
   // If successful, the update() function will return 1.
   if (updateRet == 1)
@@ -59,7 +56,6 @@ void loop() {
     // value 
     latestHumidity = rht.humidity();
     latestTempF = rht.tempF();
-    //root["TEMP"] = latestTempF;
   }
   else
   {
@@ -76,23 +72,21 @@ void loop() {
   long   time  = millis(); 
 */
   int occu = analogRead(A1);
-  if (occu>900)
-  {
-    occupancy = true;
-    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  if (occu>900){
+    occupancy = 1;
   }
-  else
-  {
-    occupancy = false;
-    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  else{
+    occupancy = 0;
   }
 
+  severe = (0.4682(latestTempF)^2 - 56.611(latestTempF) + 2099.9)occupancy;
   root["TEMP"] = latestTempF;
   root["HUMIDITY"] = latestHumidity; 
   //root["XAXIS"] = xAxis;
   //root["YAXIS"] = yAxis;
   //root["ZAXIS"] = zAxis;
   root["OCCUPIED"] = occupancy;
+  root["SEVERITY"] = severe;
   
   Serial.println();
 //  if(Serial.available()){
