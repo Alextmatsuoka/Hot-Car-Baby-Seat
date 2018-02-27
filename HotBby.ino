@@ -23,6 +23,7 @@ void setup() {
   adxl.begin();
   rht.begin(RHT03_DATA_PIN);
   delay(1000);
+  Serial.setTimeout(500);
 }
 
 void loop() {
@@ -30,10 +31,17 @@ void loop() {
   int updateRet = rht.update();
 
   StaticJsonBuffer<200> jsonBuffer;
-  char json[200] = "{}";
+  String json = Serial.readStringUntil('}');
+  if(json.length() == 0){
+    json = "{}";
+  }
+  else{
+    json = json + "}";
+  }
   JsonObject& root = jsonBuffer.parseObject(json);
   if (!root.success()) {
     Serial.println("parseObject() failed");
+    Serial.println(json);
   }
   
   for(int i=4; i>0; i--){
@@ -62,7 +70,6 @@ void loop() {
     // If the update failed, try delaying for RHT_READ_INTERVAL_MS ms before
     // trying again.
     delay(1000);
-    //return;
   }
 
   /*adxl.read();
@@ -72,14 +79,17 @@ void loop() {
   long   time  = millis(); 
 */
   int occu = analogRead(A1);
-  if (occu>900){
+  if (occu>700){
     occupancy = 1;
   }
   else{
     occupancy = 0;
   }
 
-  severe = (0.4682(latestTempF)^2 - 56.611(latestTempF) + 2099.9)occupancy;
+  severe = (0.4682*(latestTempF)*(latestTempF) - 56.611*(latestTempF) + 2099.9)*occupancy;
+  if(severe>1000){
+    severe =1000;
+  }
   root["TEMP"] = latestTempF;
   root["HUMIDITY"] = latestHumidity; 
   //root["XAXIS"] = xAxis;
